@@ -3,16 +3,8 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FaRupeeSign,
-  FaExternalLinkAlt,
-  FaUser,
-  FaGraduationCap,
-  FaComment,
-  FaStar,
-  FaClock,
-  FaLink,
-  FaTimes,
-  FaEye,
+  FaRupeeSign, FaExternalLinkAlt, FaUser, FaGraduationCap,
+  FaComment, FaStar, FaClock, FaLink, FaTimes, FaEye,
 } from 'react-icons/fa';
 import API from '../config';
 import './BusinessDashboard.css';
@@ -28,13 +20,14 @@ const CATEGORY_LABELS = {
   'Research Ops': 'Research/Ops',
 };
 
-const TEST_JOB = {
-  _id: 'test-job-hardcoded',
-  title: 'Test Job — UI Rendering Works ✅',
-  category: 'Social Media',
-  budget: 999,
-  status: 'Open',
-  isTest: true,
+// Get logged in user from localStorage
+const getLoggedInUser = () => {
+  try {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
 };
 
 function BusinessDashboard() {
@@ -47,87 +40,43 @@ function BusinessDashboard() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const loggedInUser = getLoggedInUser();
+
   useEffect(() => {
     let isMounted = true;
-
     const fetchJobs = async () => {
-      console.log('fetching jobs...');
       setLoadingJobs(true);
       setError('');
-
       try {
-        const url = `${API_BASE}/api/jobs`;
-        console.log('API URL:', url);
-
-        const response = await axios.get(url);
+        const response = await axios.get(`${API_BASE}/api/jobs`);
         const data = response.data;
-
-        console.log('jobs data:', data);
-
         if (!isMounted) return;
-
-        if (Array.isArray(data)) {
-          setJobs(data);
-        } else if (data && Array.isArray(data.jobs)) {
-          setJobs(data.jobs);
-        } else {
-          console.warn('Unexpected jobs response shape:', data);
-          setJobs([]);
-        }
+        if (Array.isArray(data)) setJobs(data);
+        else if (data && Array.isArray(data.jobs)) setJobs(data.jobs);
+        else setJobs([]);
       } catch (err) {
-        console.error('Failed to fetch jobs:', err);
-
         if (!isMounted) return;
-
-        const message =
-          err.response?.data?.message ||
-          err.message ||
-          'Failed to load jobs from API. Check your connection and try again.';
-
-        setError(`API Error: ${message} (${API_BASE}/api/jobs)`);
+        setError(err.response?.data?.message || err.message || 'Failed to load jobs.');
         setJobs([]);
       } finally {
-        if (isMounted) {
-          setLoadingJobs(false);
-        }
+        if (isMounted) setLoadingJobs(false);
       }
     };
-
     fetchJobs();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
   const fetchPitches = async (job) => {
-    if (job.isTest) {
-      setSelectedJob(job);
-      setPitches([]);
-      setSuccessMsg('');
-      setError('');
-      return;
-    }
-
     try {
       setLoadingPitches(true);
       setError('');
-      console.log('fetching pitches for job:', job._id);
-
       const { data } = await axios.get(`${API_BASE}/api/pitches/job/${job._id}`);
-      console.log('pitches data:', data);
-
       setPitches(Array.isArray(data) ? data : []);
       setSelectedJob(job);
       setSuccessMsg('');
     } catch (err) {
-      console.error('Failed to fetch pitches:', err);
       setPitches([]);
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          'Failed to load pitches for this job.'
-      );
+      setError(err.response?.data?.message || 'Failed to load pitches.');
     } finally {
       setLoadingPitches(false);
     }
@@ -139,24 +88,30 @@ function BusinessDashboard() {
     setSuccessMsg('');
   };
 
-  const handleAccept = async (pitchId) => {
-    if (!selectedJob || selectedJob.isTest) return;
+  // Check if logged in user owns this job
+  const isJobOwner = (job) => {
+    if (!loggedInUser) return false;
+    if (!job.postedByUserId) return true; // old jobs without owner = allow
+    return job.postedByUserId === loggedInUser._id ||
+           job.postedByUserId === loggedInUser.id;
+  };
 
+  const handleAccept = async (pitchId) => {
+    if (!selectedJob) return;
+    // Security check — only owner can accept
+    if (!isJobOwner(selectedJob)) {
+      setError('❌ You can only accept pitches for your own jobs!');
+      return;
+    }
     try {
       setActionLoading(pitchId);
       setSuccessMsg('');
-      const { data } = await axios.patch(
-        `${API_BASE}/api/pitches/${pitchId}/accept`
-      );
+      const { data } = await axios.patch(`${API_BASE}/api/pitches/${pitchId}/accept`);
       setPitches(data.pitches || []);
-      setJobs((prev) =>
-        prev.map((j) =>
-          j._id === selectedJob._id ? { ...j, status: 'In Progress' } : j
-        )
-      );
-      setSelectedJob((prev) =>
-        prev ? { ...prev, status: 'In Progress' } : prev
-      );
+      setJobs(prev => prev.map(j =>
+        j._id === selectedJob._id ? { ...j, status: 'In Progress' } : j
+      ));
+      setSelectedJob(prev => prev ? { ...prev, status: 'In Progress' } : prev);
       setSuccessMsg('✅ Pitch Accepted! Job is now In Progress');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to accept pitch.');
@@ -166,14 +121,16 @@ function BusinessDashboard() {
   };
 
   const handleReject = async (pitchId) => {
-    if (!selectedJob || selectedJob.isTest) return;
-
+    if (!selectedJob) return;
+    // Security check — only owner can reject
+    if (!isJobOwner(selectedJob)) {
+      setError('❌ You can only reject pitches for your own jobs!');
+      return;
+    }
     try {
       setActionLoading(pitchId);
-      const { data } = await axios.patch(`${API_BASE}/api/pitches/${pitchId}`, {
-        status: 'Rejected',
-      });
-      setPitches((prev) => prev.map((p) => (p._id === pitchId ? data : p)));
+      const { data } = await axios.patch(`${API_BASE}/api/pitches/${pitchId}`, { status: 'Rejected' });
+      setPitches(prev => prev.map(p => p._id === pitchId ? data : p));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to reject pitch.');
     } finally {
@@ -191,22 +148,29 @@ function BusinessDashboard() {
     return 'status-default';
   };
 
-  const apiJobs = jobs.filter((j) => j._id !== TEST_JOB._id);
-  const displayJobs = [TEST_JOB, ...apiJobs];
-
   const renderJobCard = (job, i) => {
     const catLabel = CATEGORY_LABELS[job.category] || job.category || 'General';
+    const owned = isJobOwner(job);
 
     return (
       <motion.article
         key={job._id}
-        className={`job-card ${job.isTest ? 'job-card-test' : ''}`}
+        className="job-card"
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: i * 0.06, duration: 0.45 }}
         whileHover={{ y: -4 }}
       >
-        {job.isTest && <span className="test-badge">TEST CARD</span>}
+        {/* Show "YOUR JOB" badge if owned */}
+        {owned && (
+          <div style={{
+            position:'absolute', top:'-10px', right:'10px',
+            background:'#FF6B00', color:'white', padding:'3px 10px',
+            borderRadius:'20px', fontSize:'11px', fontWeight:'bold'
+          }}>
+            YOUR JOB ✓
+          </div>
+        )}
         <div className="job-card-header">
           <span className="category-badge">{catLabel}</span>
           <span className={`status-badge ${getStatusClass(job.status)}`}>
@@ -214,9 +178,8 @@ function BusinessDashboard() {
           </span>
         </div>
         <h3 className="job-title">{job.title}</h3>
-        <p className="job-budget">
-          <FaRupeeSign /> ₹{formatMoney(job.budget)}
-        </p>
+        <p className="job-budget"><FaRupeeSign /> ₹{formatMoney(job.budget)}</p>
+        {/* Anyone can VIEW pitches but only owner can ACCEPT/REJECT */}
         <button
           type="button"
           className="btn-view-pitches"
@@ -224,6 +187,11 @@ function BusinessDashboard() {
         >
           <FaEye /> View Pitches 👁️
         </button>
+        {!owned && (
+          <p style={{color:'#888',fontSize:'12px',marginTop:'8px',textAlign:'center'}}>
+            👁️ View only — not your job
+          </p>
+        )}
       </motion.article>
     );
   };
@@ -234,10 +202,15 @@ function BusinessDashboard() {
         className="biz-hero"
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.55 }}
       >
         <h1>Business Dashboard 🏢</h1>
         <p>Review pitches and manage your jobs</p>
+        {loggedInUser && (
+          <p style={{color:'#FF6B00',marginTop:'8px',fontWeight:'bold'}}>
+            Logged in as: {loggedInUser.name} ({loggedInUser.userType})
+          </p>
+        )}
       </motion.header>
 
       {error && (
@@ -247,40 +220,25 @@ function BusinessDashboard() {
           animate={{ opacity: 1, y: 0 }}
         >
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => setError('')}
-            aria-label="Dismiss"
-          >
-            <FaTimes />
-          </button>
+          <button type="button" onClick={() => setError('')}><FaTimes /></button>
         </motion.div>
       )}
 
       <section className="biz-jobs-section">
-        <h2 className="section-heading">Your Jobs</h2>
-
+        <h2 className="section-heading">All Jobs</h2>
         {loadingJobs && (
           <div className="biz-loading">
             <span className="biz-spinner" />
-            <p>Loading jobs from API...</p>
+            <p>Loading jobs...</p>
           </div>
         )}
-
         <div className="jobs-grid">
-          {displayJobs.map((job, i) => renderJobCard(job, i))}
+          {jobs.map((job, i) => renderJobCard(job, i))}
         </div>
-
-        {!loadingJobs && apiJobs.length === 0 && (
-          <motion.div
-            className="biz-empty"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <p>No jobs posted yet. Post your first job!</p>
-            <Link to="/post-job" className="btn-orange">
-              Post a Job →
-            </Link>
+        {!loadingJobs && jobs.length === 0 && (
+          <motion.div className="biz-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <p>No jobs posted yet.</p>
+            <Link to="/post-job" className="btn-orange">Post a Job →</Link>
           </motion.div>
         )}
       </section>
@@ -307,13 +265,18 @@ function BusinessDashboard() {
                   <div>
                     <h2>Pitches for</h2>
                     <p className="modal-job-title">{selectedJob.title}</p>
+                    {/* Show ownership status in modal */}
+                    {isJobOwner(selectedJob) ? (
+                      <span style={{color:'#FF6B00',fontSize:'13px',fontWeight:'bold'}}>
+                        ✅ Your job — you can accept/reject pitches
+                      </span>
+                    ) : (
+                      <span style={{color:'#888',fontSize:'13px'}}>
+                        👁️ Viewing only — this is not your job
+                      </span>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    className="modal-close"
-                    onClick={closePitches}
-                    aria-label="Close"
-                  >
+                  <button type="button" className="modal-close" onClick={closePitches}>
                     <FaTimes />
                   </button>
                 </div>
@@ -331,18 +294,14 @@ function BusinessDashboard() {
                   )}
                 </AnimatePresence>
 
-                {selectedJob.isTest ? (
-                  <div className="biz-empty modal-empty">
-                    <p>This is a test card. Post a real job to see pitches.</p>
-                  </div>
-                ) : loadingPitches ? (
+                {loadingPitches ? (
                   <div className="biz-loading modal-loading">
                     <span className="biz-spinner" />
                     <p>Loading pitches...</p>
                   </div>
                 ) : pitches.length === 0 ? (
                   <div className="biz-empty modal-empty">
-                    <p>No pitches yet</p>
+                    <p>No pitches yet for this job.</p>
                   </div>
                 ) : (
                   <div className="pitches-scroll">
@@ -352,7 +311,7 @@ function BusinessDashboard() {
                         className={`pitch-card pitch-${pitch.status?.toLowerCase()}`}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05, duration: 0.35 }}
+                        transition={{ delay: i * 0.05 }}
                       >
                         <div className="pitch-row">
                           <FaUser className="pitch-icon" />
@@ -360,13 +319,10 @@ function BusinessDashboard() {
                             <span className="pitch-label">Student</span>
                             <strong>{pitch.studentName}</strong>
                           </div>
-                          <span
-                            className={`pitch-tag tag-${pitch.status?.toLowerCase()}`}
-                          >
+                          <span className={`pitch-tag tag-${pitch.status?.toLowerCase()}`}>
                             {pitch.status}
                           </span>
                         </div>
-
                         <div className="pitch-row">
                           <FaGraduationCap className="pitch-icon" />
                           <div>
@@ -374,7 +330,6 @@ function BusinessDashboard() {
                             <p>{pitch.college}</p>
                           </div>
                         </div>
-
                         <div className="pitch-row block">
                           <FaComment className="pitch-icon" />
                           <div>
@@ -382,7 +337,6 @@ function BusinessDashboard() {
                             <p>{pitch.intro}</p>
                           </div>
                         </div>
-
                         <div className="pitch-row block">
                           <FaStar className="pitch-icon" />
                           <div>
@@ -390,34 +344,23 @@ function BusinessDashboard() {
                             <p>{pitch.whyMe}</p>
                           </div>
                         </div>
-
                         <div className="pitch-meta-grid">
                           <div className="pitch-meta">
                             <span className="pitch-label">💰 Their Price</span>
-                            <strong className="price-text">
-                              ₹{formatMoney(pitch.cost)}
-                            </strong>
+                            <strong className="price-text">₹{formatMoney(pitch.cost)}</strong>
                           </div>
                           <div className="pitch-meta">
-                            <span className="pitch-label">
-                              <FaClock /> Timeline
-                            </span>
+                            <span className="pitch-label"><FaClock /> Timeline</span>
                             <strong>{pitch.timeline} days</strong>
                           </div>
                         </div>
-
                         {pitch.portfolioLink && (
-                          <a
-                            href={pitch.portfolioLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="portfolio-link"
-                          >
-                            <FaLink /> Portfolio link <FaExternalLinkAlt />
+                          <a href={pitch.portfolioLink} target="_blank" rel="noopener noreferrer" className="portfolio-link">
+                            <FaLink /> Portfolio <FaExternalLinkAlt />
                           </a>
                         )}
-
-                        {pitch.status === 'Pending' && (
+                        {/* Only show Accept/Reject if you own the job */}
+                        {pitch.status === 'Pending' && isJobOwner(selectedJob) && (
                           <div className="pitch-actions">
                             <button
                               type="button"
@@ -425,9 +368,7 @@ function BusinessDashboard() {
                               disabled={!!actionLoading}
                               onClick={() => handleAccept(pitch._id)}
                             >
-                              {actionLoading === pitch._id
-                                ? 'Accepting...'
-                                : '✅ Accept'}
+                              {actionLoading === pitch._id ? 'Accepting...' : '✅ Accept'}
                             </button>
                             <button
                               type="button"
@@ -438,6 +379,12 @@ function BusinessDashboard() {
                               ❌ Reject
                             </button>
                           </div>
+                        )}
+                        {/* Show message if not owner */}
+                        {pitch.status === 'Pending' && !isJobOwner(selectedJob) && (
+                          <p style={{color:'#888',fontSize:'12px',textAlign:'center',marginTop:'10px'}}>
+                            🔒 Only the job owner can accept or reject pitches
+                          </p>
                         )}
                       </motion.div>
                     ))}

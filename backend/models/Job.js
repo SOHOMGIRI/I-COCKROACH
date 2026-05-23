@@ -36,6 +36,10 @@ const jobSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  postedByUserId: {
+    type: String,
+    default: '',
+  },
   status: {
     type: String,
     enum: ['Open', 'In Progress', 'Completed', 'Closed'],

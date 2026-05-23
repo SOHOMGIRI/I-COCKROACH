@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/jobs - create new job
+// POST /api/jobs - create new job (save postedByUserId)
 router.post('/', async (req, res) => {
   try {
     const job = new Job(req.body);
@@ -27,30 +27,29 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+    if (!job) return res.status(404).json({ message: 'Job not found' });
     res.json(job);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// PATCH /api/jobs/:id/status - update job status
+// PATCH /api/jobs/:id/status - update job status (owner only)
 router.patch('/:id/status', async (req, res) => {
   try {
-    const { status } = req.body;
-    if (!status) {
-      return res.status(400).json({ message: 'Status is required' });
+    const { status, userId } = req.body;
+    if (!status) return res.status(400).json({ message: 'Status is required' });
+
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // Check ownership if userId provided
+    if (userId && job.postedByUserId && job.postedByUserId !== userId) {
+      return res.status(403).json({ message: 'Not authorized to update this job' });
     }
-    const job = await Job.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    );
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+
+    job.status = status;
+    await job.save();
     res.json(job);
   } catch (err) {
     res.status(400).json({ message: err.message });

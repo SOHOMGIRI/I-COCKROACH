@@ -22,6 +22,9 @@ const CATEGORIES = [
   { label: 'Research/Ops', value: 'Research Ops' },
 ];
 
+// ADMIN USER ID — only this person can delete any job
+const ADMIN_USER_ID = 'SOHOMGIRI_ADMIN';
+
 const initialForm = {
   businessName: '',
   yourName: '',
@@ -33,12 +36,24 @@ const initialForm = {
   expectedOutcome: '',
 };
 
+// Get logged in user from localStorage
+const getLoggedInUser = () => {
+  try {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
+};
+
 function PostJob() {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  const loggedInUser = getLoggedInUser();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -73,6 +88,7 @@ function PostJob() {
         ? `${form.description.trim()}\n\n--- Expected Outcome ---\n${form.expectedOutcome.trim()}`
         : form.description.trim();
 
+      // ✅ FIX: Add postedByUserId from logged in user
       const payload = {
         title: form.jobTitle.trim(),
         category: form.category,
@@ -80,6 +96,7 @@ function PostJob() {
         deadline: form.deadline,
         description,
         postedBy: `${form.businessName.trim()} — ${form.yourName.trim()}`,
+        postedByUserId: loggedInUser?._id || loggedInUser?.id || '',
       };
 
       await axios.post(`${API}/api/jobs`, payload);

@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/jobs - create new job (save postedByUserId)
+// POST /api/jobs - create new job
 router.post('/', async (req, res) => {
   try {
     const job = new Job(req.body);
@@ -34,7 +34,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PATCH /api/jobs/:id/status - update job status (owner only)
+// PATCH /api/jobs/:id/status - update job status
 router.patch('/:id/status', async (req, res) => {
   try {
     const { status, userId } = req.body;
@@ -43,7 +43,6 @@ router.patch('/:id/status', async (req, res) => {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
-    // Check ownership if userId provided
     if (userId && job.postedByUserId && job.postedByUserId !== userId) {
       return res.status(403).json({ message: 'Not authorized to update this job' });
     }
@@ -53,6 +52,17 @@ router.patch('/:id/status', async (req, res) => {
     res.json(job);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// DELETE /api/jobs/:id - admin delete job
+router.delete('/:id', async (req, res) => {
+  try {
+    const job = await Job.findByIdAndDelete(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    res.json({ message: 'Job deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

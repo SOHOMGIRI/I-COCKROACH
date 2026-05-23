@@ -44,6 +44,23 @@ router.get('/job/:jobId', async (req, res) => {
   }
 });
 
+// PATCH /api/pitches/:id/reject - reject a pitch
+router.patch('/:id/reject', async (req, res) => {
+  try {
+    const pitch = await Pitch.findByIdAndUpdate(
+      req.params.id,
+      { status: 'Rejected' },
+      { new: true, runValidators: true }
+    );
+    if (!pitch) {
+      return res.status(404).json({ message: 'Pitch not found' });
+    }
+    res.json(pitch);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // PATCH /api/pitches/:id/accept - accept pitch, reject others
 router.patch('/:id/accept', async (req, res) => {
   try {

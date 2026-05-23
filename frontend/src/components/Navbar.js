@@ -27,6 +27,11 @@ function Navbar() {
             </NavLink>
           </li>
           <li>
+            <NavLink to="/business-dashboard" className="navbar-link">
+              Business
+            </NavLink>
+          </li>
+          <li>
             <NavLink to="/student-dashboard" className="navbar-link">
               Dashboard
             </NavLink>

@@ -3,6 +3,20 @@ const router = express.Router();
 const Pitch = require('../models/Pitch');
 const Job = require('../models/Job');
 
+// GET /api/pitches - get all pitches (optional ?studentName= filter)
+router.get('/', async (req, res) => {
+  try {
+    const query = {};
+    if (req.query.studentName) {
+      query.studentName = { $regex: req.query.studentName.trim(), $options: 'i' };
+    }
+    const pitches = await Pitch.find(query).sort({ createdAt: -1 });
+    res.json(pitches);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // POST /api/pitches - create pitch
 router.post('/', async (req, res) => {
   try {

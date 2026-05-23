@@ -1,24 +1,32 @@
-import logo from './logo.svg';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import PostJob from './pages/PostJob';
+import JobListings from './pages/JobListings';
+import PitchForm from './pages/PitchForm';
+import StudentDashboard from './pages/StudentDashboard';
+import BusinessDashboard from './pages/BusinessDashboard';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <div className="app-wrapper">
+        <Navbar />
+        <main className="app-main">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/post-job" element={<PostJob />} />
+            <Route path="/jobs" element={<JobListings />} />
+            <Route path="/pitch/:jobId" element={<PitchForm />} />
+            <Route path="/student-dashboard" element={<StudentDashboard />} />
+            <Route path="/business-dashboard" element={<BusinessDashboard />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </BrowserRouter>
   );
 }
 

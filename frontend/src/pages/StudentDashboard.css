@@ -367,6 +367,127 @@
   color: #0a0a0a;
 }
 
+.action-btn-submit {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.dash-submit-success {
+  max-width: 1200px;
+  margin: 0 auto 1.25rem;
+  padding: 0.9rem 1.25rem;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 10px;
+  color: #4ade80;
+  font-weight: 600;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.submit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 300;
+}
+
+.submit-modal-wrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 301;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.submit-modal-wrapper .submit-modal {
+  pointer-events: auto;
+}
+
+.submit-modal {
+  width: 100%;
+  max-width: 420px;
+  background: #111111;
+  border: 1px solid rgba(255, 107, 0, 0.35);
+  border-radius: 16px;
+  padding: 2rem 1.75rem;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.submit-modal h3 {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.submit-modal p {
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.55;
+}
+
+.submit-modal p strong {
+  color: #ff6b00;
+}
+
+.submit-modal-error {
+  margin: -0.5rem 0 1rem !important;
+  padding: 0.65rem;
+  background: rgba(255, 68, 68, 0.1);
+  border-radius: 8px;
+  color: #ff6b6b !important;
+  font-size: 0.85rem !important;
+}
+
+.submit-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-modal-cancel,
+.btn-modal-yes {
+  flex: 1;
+  padding: 0.85rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  font-family: inherit;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.btn-modal-cancel {
+  background: #333333;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.btn-modal-cancel:hover:not(:disabled) {
+  background: #444444;
+}
+
+.btn-modal-yes {
+  background: #22c55e;
+  color: #0a0a0a;
+}
+
+.btn-modal-yes:hover:not(:disabled) {
+  background: #4ade80;
+  transform: translateY(-1px);
+}
+
+.btn-modal-cancel:disabled,
+.btn-modal-yes:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .table-empty {
   text-align: center;
   padding: 2rem;

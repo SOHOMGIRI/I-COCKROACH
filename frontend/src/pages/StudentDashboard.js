@@ -4,12 +4,15 @@ import axios from 'axios';
 import {
   animate,
   motion,
+  AnimatePresence,
   useInView,
   useMotionValue,
   useTransform,
 } from 'framer-motion';
 import API from '../config';
 import './StudentDashboard.css';
+
+const API_BASE = API || 'https://i-cockroach.onrender.com';
 
 const TIERS = ['Bronze', 'Silver', 'Gold', 'Verified Pro'];
 
@@ -21,13 +24,11 @@ const TIER_STYLES = {
 };
 
 const TIER_REQUIREMENTS = {
-  Bronze: { next: 'Silver', req: 'Complete 1 task • Reach 25 trust points' },
-  Silver: { next: 'Gold', req: '5 tasks completed • 60+ trust points' },
-  Gold: { next: 'Verified Pro', req: '15 tasks • 85+ trust points • Portfolio verified' },
+  Bronze: { next: 'Silver', req: 'Reach 26 points to unlock Silver' },
+  Silver: { next: 'Gold', req: 'Reach 51 points to unlock Gold' },
+  Gold: { next: 'Verified Pro', req: 'Reach 76 points to unlock Verified Pro' },
   'Verified Pro': { next: null, req: 'You are at the top tier! Keep delivering excellence.' },
 };
-
-const TIER_THRESHOLDS = { Bronze: 0, Silver: 25, Gold: 60, 'Verified Pro': 100 };
 
 const SKILL_DEMAND = [
   { skill: 'Video Editing', percent: 87 },
@@ -46,6 +47,36 @@ const CATEGORY_LABELS = {
   'Automation Tech': 'Automation/Tech',
   'Research Ops': 'Research/Ops',
 };
+
+/** Bronze: 0–25 | Silver: 26–50 | Gold: 51–75 | Verified Pro: 76–100 */
+function getTierFromScore(score) {
+  const s = Math.min(100, Math.max(0, Number(score) || 0));
+  if (s >= 76) return 'Verified Pro';
+  if (s >= 51) return 'Gold';
+  if (s >= 26) return 'Silver';
+  return 'Bronze';
+}
+
+function getTierProgress(score) {
+  const s = Math.min(100, Math.max(0, Number(score) || 0));
+  const tier = getTierFromScore(s);
+
+  if (tier === 'Verified Pro') return 100;
+  if (tier === 'Bronze') return Math.min(100, (s / 25) * 100);
+  if (tier === 'Silver') return Math.min(100, ((s - 26) / 24) * 100);
+  if (tier === 'Gold') return Math.min(100, ((s - 51) / 24) * 100);
+  return 0;
+}
+
+function getNextTier(tier) {
+  const map = {
+    Bronze: 'Silver',
+    Silver: 'Gold',
+    Gold: 'Verified Pro',
+    'Verified Pro': null,
+  };
+  return map[tier] ?? null;
+}
 
 function AnimatedCounter({ target, prefix = '', suffix = '' }) {
   const ref = useRef(null);
@@ -71,7 +102,8 @@ function AnimatedCounter({ target, prefix = '', suffix = '' }) {
 function getWorkStatus(pitch, job) {
   if (pitch.status === 'Pending') return 'Pending';
   if (pitch.status === 'Accepted') {
-    if (job?.status === 'Completed' || job?.status === 'Closed') return 'Paid';
+    if (job?.status === 'Closed') return 'Paid';
+    if (job?.status === 'Completed') return 'Completed';
     if (job?.status === 'In Progress') return 'In Progress';
     return 'In Progress';
   }
@@ -81,17 +113,17 @@ function getWorkStatus(pitch, job) {
 function getAction(status) {
   switch (status) {
     case 'Pending':
-      return { label: 'View Pitch', to: '/jobs' };
+      return { label: 'View Pitch', type: 'link' };
     case 'In Progress':
-      return { label: 'Submit Work', to: '/jobs' };
+      return { label: 'Submit Work', type: 'submit' };
     case 'Revision':
-      return { label: 'Resubmit', to: '/jobs' };
+      return { label: 'Resubmit', type: 'link' };
     case 'Completed':
-      return { label: 'View Details', to: '/jobs' };
+      return { label: 'View Details', type: 'link' };
     case 'Paid':
-      return { label: 'View Receipt', to: '/jobs' };
+      return { label: 'View Receipt', type: 'link' };
     default:
-      return { label: 'View', to: '/jobs' };
+      return { label: 'View', type: 'link' };
   }
 }
 
@@ -100,6 +132,10 @@ function StudentDashboard() {
   const [jobs, setJobs] = useState([]);
   const [pitches, setPitches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitModal, setSubmitModal] = useState(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   const studentName =
     localStorage.getItem('icockroach_student_name') || 'Student';
@@ -109,11 +145,11 @@ function StudentDashboard() {
       try {
         setLoading(true);
         const [jobsRes, pitchesRes, studentsRes] = await Promise.all([
-          axios.get(`${API}/api/jobs`),
-          axios.get(`${API}/api/pitches`, {
+          axios.get(`${API_BASE}/api/jobs`),
+          axios.get(`${API_BASE}/api/pitches`, {
             params: { studentName },
           }),
-          axios.get(`${API}/api/students`),
+          axios.get(`${API_BASE}/api/students`),
         ]);
 
         setJobs(Array.isArray(jobsRes.data) ? jobsRes.data : []);
@@ -131,17 +167,16 @@ function StudentDashboard() {
             (p) => p.status === 'Accepted'
           );
           const earnings = accepted.reduce((sum, p) => sum + (p.cost || 0), 0);
+          const trustScore = Math.min(20 + accepted.length * 8, 99);
           setStudent({
             name: studentName,
-            trustTier: 'Bronze',
-            trustScore: Math.min(20 + accepted.length * 8, 99),
+            trustScore,
             totalEarnings: earnings,
           });
         }
       } catch {
         setStudent({
           name: studentName,
-          trustTier: 'Bronze',
           trustScore: 15,
           totalEarnings: 0,
         });
@@ -157,6 +192,12 @@ function StudentDashboard() {
     () => Object.fromEntries(jobs.map((j) => [j._id, j])),
     [jobs]
   );
+
+  const trustScore = student?.trustScore ?? 0;
+  const tier = getTierFromScore(trustScore);
+  const tierStyle = TIER_STYLES[tier] || TIER_STYLES.Bronze;
+  const progress = getTierProgress(trustScore);
+  const nextTier = getNextTier(tier);
 
   const stats = useMemo(() => {
     const availableJobs = jobs.filter((j) => j.status === 'Open').length;
@@ -202,21 +243,49 @@ function StudentDashboard() {
       .slice(0, 5);
   }, [pitches, jobMap]);
 
-  const tier = student?.trustTier || 'Bronze';
-  const tierStyle = TIER_STYLES[tier] || TIER_STYLES.Bronze;
-  const trustScore = student?.trustScore ?? 0;
-  const currentThreshold = TIER_THRESHOLDS[tier] ?? 0;
-  const nextTier = TIER_REQUIREMENTS[tier]?.next;
-  const nextThreshold = nextTier ? TIER_THRESHOLDS[nextTier] : 100;
-  const progress =
-    nextTier
-      ? Math.min(
-          100,
-          ((trustScore - currentThreshold) /
-            (nextThreshold - currentThreshold)) *
-            100
+  const handleOpenSubmitModal = (row) => {
+    setSubmitSuccess('');
+    setSubmitError('');
+    setSubmitModal({
+      jobId: row.jobId,
+      jobTitle: row.title,
+    });
+  };
+
+  const handleCloseSubmitModal = () => {
+    if (!submitLoading) {
+      setSubmitModal(null);
+    }
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!submitModal?.jobId) return;
+
+    try {
+      setSubmitLoading(true);
+      setSubmitError('');
+
+      await axios.patch(`${API_BASE}/api/jobs/${submitModal.jobId}/status`, {
+        status: 'Completed',
+      });
+
+      setJobs((prev) =>
+        prev.map((j) =>
+          j._id === submitModal.jobId ? { ...j, status: 'Completed' } : j
         )
-      : 100;
+      );
+
+      setSubmitModal(null);
+      setSubmitSuccess('✅ Work submitted! Waiting for business approval.');
+    } catch (err) {
+      setSubmitError(
+        err.response?.data?.message ||
+          'Failed to submit work. Please try again.'
+      );
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
   const statCards = [
     { icon: '💼', label: 'Available Jobs', value: stats.availableJobs },
@@ -286,6 +355,16 @@ function StudentDashboard() {
           </div>
         </div>
       </motion.header>
+
+      {submitSuccess && (
+        <motion.div
+          className="dash-submit-success"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {submitSuccess}
+        </motion.div>
+      )}
 
       <div className="stats-row">
         {statCards.map((card, i) => (
@@ -397,17 +476,29 @@ function StudentDashboard() {
                         ₹{Number(row.budget).toLocaleString('en-IN')}
                       </td>
                       <td>
-                        <span className={`status-pill status-${row.status.replace(/\s/g, '-')}`}>
+                        <span
+                          className={`status-pill status-${row.status.replace(/\s/g, '-')}`}
+                        >
                           {row.status}
                         </span>
                       </td>
                       <td>
-                        <Link
-                          to={row.jobId ? `/pitch/${row.jobId}` : row.action.to}
-                          className="action-btn"
-                        >
-                          {row.action.label}
-                        </Link>
+                        {row.action.type === 'submit' ? (
+                          <button
+                            type="button"
+                            className="action-btn action-btn-submit"
+                            onClick={() => handleOpenSubmitModal(row)}
+                          >
+                            {row.action.label}
+                          </button>
+                        ) : (
+                          <Link
+                            to={row.jobId ? `/pitch/${row.jobId}` : '/jobs'}
+                            className="action-btn"
+                          >
+                            {row.action.label}
+                          </Link>
+                        )}
                       </td>
                     </motion.tr>
                   ))}
@@ -460,7 +551,9 @@ function StudentDashboard() {
           >
             <h2>Recent Earnings</h2>
             {recentEarnings.length === 0 ? (
-              <p className="earnings-empty">No earnings yet. Win a pitch to get paid!</p>
+              <p className="earnings-empty">
+                No earnings yet. Win a pitch to get paid!
+              </p>
             ) : (
               <ul className="earnings-list">
                 {recentEarnings.map((item, i) => (
@@ -482,6 +575,53 @@ function StudentDashboard() {
           </motion.section>
         </div>
       </div>
+
+      <AnimatePresence>
+        {submitModal && (
+          <>
+            <motion.div
+              className="submit-modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseSubmitModal}
+            />
+            <div className="submit-modal-wrapper">
+              <motion.div
+                className="submit-modal"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+              >
+                <h3>Submit Your Work</h3>
+                <p>Are you sure you want to mark this job as completed?</p>
+                {submitError && (
+                  <p className="submit-modal-error">{submitError}</p>
+                )}
+                <div className="submit-modal-actions">
+                  <button
+                    type="button"
+                    className="btn-modal-cancel"
+                    onClick={handleCloseSubmitModal}
+                    disabled={submitLoading}
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-modal-yes"
+                    onClick={handleConfirmSubmit}
+                    disabled={submitLoading}
+                  >
+                    {submitLoading ? 'Submitting...' : 'YES'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -26,6 +26,7 @@ mongoose.connect(MONGO_URI, {
 .catch(err => console.error('❌ MongoDB Error:', err.message));
 
 // Routes
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/pitches', require('./routes/pitches'));

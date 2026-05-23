@@ -1,7 +1,32 @@
-import { NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { getUser, clearAuth } from '../utils/auth';
 import './Navbar.css';
 
 function Navbar() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+
+  const loadUser = () => {
+    setUser(getUser());
+  };
+
+  useEffect(() => {
+    loadUser();
+    window.addEventListener('auth-change', loadUser);
+    window.addEventListener('storage', loadUser);
+    return () => {
+      window.removeEventListener('auth-change', loadUser);
+      window.removeEventListener('storage', loadUser);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    clearAuth();
+    setUser(null);
+    navigate('/');
+  };
+
   return (
     <nav className="navbar">
       <div className="navbar-inner">
@@ -21,22 +46,73 @@ function Navbar() {
               Find Work
             </NavLink>
           </li>
-          <li>
-            <NavLink to="/post-job" className="navbar-link">
-              Post a Job
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/business-dashboard" className="navbar-link">
-              Business
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/student-dashboard" className="navbar-link">
-              Dashboard
-            </NavLink>
-          </li>
+          {user?.userType === 'Business' && (
+            <li>
+              <NavLink to="/post-job" className="navbar-link">
+                Post a Job
+              </NavLink>
+            </li>
+          )}
+          {user?.userType === 'Business' && (
+            <li>
+              <NavLink to="/business-dashboard" className="navbar-link">
+                Business
+              </NavLink>
+            </li>
+          )}
+          {user?.userType === 'Student' && (
+            <li>
+              <NavLink to="/student-dashboard" className="navbar-link">
+                Dashboard
+              </NavLink>
+            </li>
+          )}
+          {!user && (
+            <>
+              <li>
+                <NavLink to="/post-job" className="navbar-link">
+                  Post a Job
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to="/business-dashboard" className="navbar-link">
+                  Business
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to="/student-dashboard" className="navbar-link">
+                  Dashboard
+                </NavLink>
+              </li>
+            </>
+          )}
         </ul>
+
+        <div className="navbar-auth">
+          {user ? (
+            <>
+              <span className="navbar-user">
+                Hi, <strong>{user.name}</strong>
+              </span>
+              <button
+                type="button"
+                className="navbar-btn navbar-btn-logout"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="navbar-btn navbar-btn-login">
+                Login
+              </Link>
+              <Link to="/signup" className="navbar-btn navbar-btn-signup">
+                Sign Up
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );

@@ -149,7 +149,7 @@ function Home() {
         </div>
         <div className="hero-particles" aria-hidden="true">
           {Array.from({ length: 24 }).map((_, i) => (
-            <span key={i} className="particle" style={{ '--i': i }} />
+            <span key={i} className="particle" />
           ))}
         </div>
 

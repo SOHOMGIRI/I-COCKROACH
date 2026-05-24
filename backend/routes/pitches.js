@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Pitch = require('../models/Pitch');
 const Job = require('../models/Job');
+// ✅ Import your auth middleware so we know who is logged in
+const authMiddleware = require('../middleware/auth');
 
+// Get all pitches (optional filter by studentName)
 router.get('/', async (req, res) => {
   try {
     const query = {};
@@ -16,6 +19,7 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Submit a new pitch
 router.post('/', async (req, res) => {
   try {
     const job = await Job.findById(req.body.jobId);
@@ -28,6 +32,7 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Get all pitches for a specific job
 router.get('/job/:jobId', async (req, res) => {
   try {
     const pitches = await Pitch.find({ jobId: req.params.jobId }).sort({ createdAt: -1 });
@@ -37,6 +42,7 @@ router.get('/job/:jobId', async (req, res) => {
   }
 });
 
+// Update pitch status (generic)
 router.patch('/:id', async (req, res) => {
   try {
     const { status } = req.body;
@@ -53,32 +59,56 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-router.patch('/:id/reject', async (req, res) => {
+// Reject a pitch (only job owner)
+router.patch('/:id/reject', authMiddleware, async (req, res) => {
   try {
-    const pitch = await Pitch.findByIdAndUpdate(
-      req.params.id,
-      { status: 'Rejected' },
-      { new: true }
-    );
+    const pitch = await Pitch.findById(req.params.id);
     if (!pitch) return res.status(404).json({ message: 'Pitch not found' });
+
+    const job = await Job.findById(pitch.jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // ✅ Ownership check
+    if (String(job.ownerId) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Not authorized to reject pitches for this job' });
+    }
+
+    pitch.status = 'Rejected';
+    await pitch.save();
     res.json(pitch);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-router.patch('/:id/accept', async (req, res) => {
+// Accept a pitch (only job owner)
+router.patch('/:id/accept', authMiddleware, async (req, res) => {
   try {
     const pitch = await Pitch.findById(req.params.id);
     if (!pitch) return res.status(404).json({ message: 'Pitch not found' });
+
+    const job = await Job.findById(pitch.jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // ✅ Ownership check
+    if (String(job.ownerId) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Not authorized to accept pitches for this job' });
+    }
+
     pitch.status = 'Accepted';
     await pitch.save();
+
+    // Reject all other pitches for the same job
     await Pitch.updateMany(
       { jobId: pitch.jobId, _id: { $ne: pitch._id } },
       { status: 'Rejected' }
     );
+
+    // Update job status
     await Job.findByIdAndUpdate(pitch.jobId, { status: 'In Progress' });
+
     const allPitches = await Pitch.find({ jobId: pitch.jobId }).sort({ createdAt: -1 });
+
     res.json({
       message: 'Pitch accepted.',
       acceptedPitch: pitch,

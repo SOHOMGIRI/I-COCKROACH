@@ -31,24 +31,27 @@ const jobSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+
+  // ✅ Display name of the poster (optional, for UI)
   postedBy: {
     type: String,
     required: true,
     trim: true,
   },
-  postedByUserId: {
-    type: String,
-    default: '',
+
+  // ✅ Actual owner reference (critical for ownership checks)
+  ownerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
   },
+
   status: {
     type: String,
     enum: ['Open', 'In Progress', 'Completed', 'Closed'],
     default: 'Open',
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+
+}, { timestamps: true });
 
 module.exports = mongoose.model('Job', jobSchema);

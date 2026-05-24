@@ -1,55 +1,118 @@
 const express = require('express');
 const router = express.Router();
+const Pitch = require('../models/Pitch');
 const Job = require('../models/Job');
+const authMiddleware = require('../middleware/auth'); // ✅ Make sure you have this
 
+// Get all pitches (optional filter by studentName)
 router.get('/', async (req, res) => {
   try {
-    const jobs = await Job.find().sort({ createdAt: -1 });
-    res.json(jobs);
+    const query = {};
+    if (req.query.studentName) {
+      query.studentName = { $regex: req.query.studentName.trim(), $options: 'i' };
+    }
+    const pitches = await Pitch.find(query).sort({ createdAt: -1 });
+    res.json(pitches);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
+// Submit a new pitch
 router.post('/', async (req, res) => {
   try {
-    const job = new Job(req.body);
-    const savedJob = await job.save();
-    res.status(201).json(savedJob);
+    const job = await Job.findById(req.body.jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    const pitch = new Pitch(req.body);
+    const savedPitch = await pitch.save();
+    res.status(201).json(savedPitch);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
-router.get('/:id', async (req, res) => {
+// Get all pitches for a specific job
+router.get('/job/:jobId', async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
-    if (!job) return res.status(404).json({ message: 'Job not found' });
-    res.json(job);
+    const pitches = await Pitch.find({ jobId: req.params.jobId }).sort({ createdAt: -1 });
+    res.json(pitches);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-router.patch('/:id/status', async (req, res) => {
+// Update pitch status (generic)
+router.patch('/:id', async (req, res) => {
   try {
     const { status } = req.body;
     if (!status) return res.status(400).json({ message: 'Status is required' });
-    const job = await Job.findById(req.params.id);
-    if (!job) return res.status(404).json({ message: 'Job not found' });
-    job.status = status;
-    await job.save();
-    res.json(job);
+    const pitch = await Pitch.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    );
+    if (!pitch) return res.status(404).json({ message: 'Pitch not found' });
+    res.json(pitch);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
-router.delete('/:id', async (req, res) => {
+// Reject a pitch (only job owner)
+router.patch('/:id/reject', authMiddleware, async (req, res) => {
   try {
-    const job = await Job.findByIdAndDelete(req.params.id);
+    const pitch = await Pitch.findById(req.params.id);
+    if (!pitch) return res.status(404).json({ message: 'Pitch not found' });
+
+    const job = await Job.findById(pitch.jobId);
     if (!job) return res.status(404).json({ message: 'Job not found' });
-    res.json({ message: 'Job deleted successfully' });
+
+    // ✅ Ownership check
+    if (String(job.ownerId) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Not authorized to reject pitches for this job' });
+    }
+
+    pitch.status = 'Rejected';
+    await pitch.save();
+    res.json(pitch);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Accept a pitch (only job owner)
+router.patch('/:id/accept', authMiddleware, async (req, res) => {
+  try {
+    const pitch = await Pitch.findById(req.params.id);
+    if (!pitch) return res.status(404).json({ message: 'Pitch not found' });
+
+    const job = await Job.findById(pitch.jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // ✅ Ownership check
+    if (String(job.ownerId) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Not authorized to accept pitches for this job' });
+    }
+
+    pitch.status = 'Accepted';
+    await pitch.save();
+
+    // Reject all other pitches for the same job
+    await Pitch.updateMany(
+      { jobId: pitch.jobId, _id: { $ne: pitch._id } },
+      { status: 'Rejected' }
+    );
+
+    // Update job status
+    await Job.findByIdAndUpdate(pitch.jobId, { status: 'In Progress' });
+
+    const allPitches = await Pitch.find({ jobId: pitch.jobId }).sort({ createdAt: -1 });
+
+    res.json({
+      message: 'Pitch accepted.',
+      acceptedPitch: pitch,
+      pitches: allPitches,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

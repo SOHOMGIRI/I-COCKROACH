@@ -91,7 +91,8 @@ function PostJob() {
         deadline: form.deadline,
         description,
         postedBy: `${form.businessName.trim()} — ${form.yourName.trim()}`,
-        postedByUserId: loggedInUser?._id || loggedInUser?.id || '',
+        // ✅ FIXED: was postedByUserId, now ownerId to match Job model
+        ownerId: loggedInUser?._id || loggedInUser?.id || '',
       };
 
       await axios.post(`${API}/api/jobs`, payload);

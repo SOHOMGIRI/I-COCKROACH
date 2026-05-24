@@ -85,16 +85,26 @@ function BusinessDashboard() {
     setError('');
   };
 
-  // ✅ FIXED ownership check with multiple fallbacks
+  // ✅ FIXED: checks job.ownerId first, falls back to job.postedByUserId for old jobs
   const isJobOwner = (job) => {
     if (!loggedInUser) return false;
-    if (!job.postedByUserId || job.postedByUserId === '') return false;
 
-    const jobOwnerId = String(job.postedByUserId).trim();
     const userId1 = String(loggedInUser._id || '').trim();
     const userId2 = String(loggedInUser.id || '').trim();
 
-    return jobOwnerId === userId1 || jobOwnerId === userId2;
+    // Check ownerId (new jobs — matches Job.js model)
+    if (job.ownerId && job.ownerId !== '') {
+      const jobOwnerId = String(job.ownerId).trim();
+      if (jobOwnerId === userId1 || jobOwnerId === userId2) return true;
+    }
+
+    // Fallback: check postedByUserId (old jobs posted before this fix)
+    if (job.postedByUserId && job.postedByUserId !== '') {
+      const jobOwnerId = String(job.postedByUserId).trim();
+      if (jobOwnerId === userId1 || jobOwnerId === userId2) return true;
+    }
+
+    return false;
   };
 
   const handleAccept = async (pitchId) => {

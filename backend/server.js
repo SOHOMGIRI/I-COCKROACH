@@ -29,6 +29,7 @@ mongoose.connect(MONGO_URI, {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/students', require('./routes/students'));
+app.use('/api/enhance', require('./routes/enhance'));
 app.use('/api/pitches', require('./routes/pitches'));
 
 // Root route

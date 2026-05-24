@@ -17,6 +17,7 @@ import Pricing from './pages/Pricing';
 import BrowseTalent from './pages/BrowseTalent';
 import GetVerified from './pages/GetVerified';
 import TrustTiers from './pages/TrustTiers';
+import AdminPanel from './pages/AdminPanel';
 import './App.css';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
             <Route path="/browse-talent" element={<BrowseTalent />} />
             <Route path="/get-verified" element={<GetVerified />} />
             <Route path="/trust-tiers" element={<TrustTiers />} />
+            <Route path="/admin" element={<AdminPanel />} />
           </Routes>
         </main>
         <Footer />

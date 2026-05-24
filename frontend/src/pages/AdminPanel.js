@@ -1,10 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import axios from 'axios';
 import API from '../config';
-
-// ✅ SET YOUR ADMIN EMAIL HERE
-const ADMIN_EMAIL = 'girisohom11@gmail.com';
 
 export default function AdminPanel() {
   const [jobs, setJobs] = useState([]);
@@ -12,9 +8,7 @@ export default function AdminPanel() {
   const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
 
-  // Simple admin password check
   const handleAdminLogin = () => {
     if (password === 'icockroach_admin_2026') {
       setAuthenticated(true);
@@ -35,14 +29,10 @@ export default function AdminPanel() {
   };
 
   const handleCancelJob = async (jobId) => {
-    if (!window.confirm('Are you sure you want to CANCEL this job? This cannot be undone.')) return;
+    if (!window.confirm('Are you sure you want to CANCEL this job?')) return;
     try {
-      await axios.patch(`${API}/api/jobs/${jobId}/status`, {
-        status: 'Closed'
-      });
-      setJobs(prev => prev.map(j =>
-        j._id === jobId ? { ...j, status: 'Closed' } : j
-      ));
+      await axios.patch(`${API}/api/jobs/${jobId}/status`, { status: 'Closed' });
+      setJobs(prev => prev.map(j => j._id === jobId ? { ...j, status: 'Closed' } : j));
       alert('✅ Job cancelled successfully!');
     } catch (err) {
       alert('Failed to cancel job.');

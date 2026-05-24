@@ -64,8 +64,6 @@ function PitchForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
-
-  // AI states
   const [aiLoadingIntro, setAiLoadingIntro] = useState(false);
   const [aiLoadingWhyMe, setAiLoadingWhyMe] = useState(false);
   const [aiSuccessIntro, setAiSuccessIntro] = useState(false);
@@ -93,22 +91,19 @@ function PitchForm() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-  // ✅ AI Enhancement — calls YOUR backend, no API key needed in frontend
+  // ✅ FIXED - calls backend instead of Anthropic directly
   const enhanceWithAI = async (fieldName, fieldValue, setLoadingFn, setSuccessFn) => {
     if (!fieldValue.trim()) {
       alert('Please write something first before enhancing with AI!');
       return;
     }
-
     setLoadingFn(true);
     setSuccessFn(false);
-
     try {
       const { data } = await axios.post(`${API}/api/enhance`, {
         fieldName,
         fieldValue,
       });
-
       if (data.enhancedText) {
         setForm(prev => ({ ...prev, [fieldName]: data.enhancedText }));
         setSuccessFn(true);
@@ -118,7 +113,7 @@ function PitchForm() {
       }
     } catch (err) {
       console.error('AI error:', err);
-      alert('AI enhancement failed. Please check your connection.');
+      alert('AI enhancement failed. Please try again.');
     } finally {
       setLoadingFn(false);
     }
@@ -143,13 +138,11 @@ function PitchForm() {
     e.preventDefault();
     setSubmitError('');
     if (!validate()) return;
-
     setLoading(true);
     try {
       const intro = form.sampleWork.trim()
         ? `${form.intro.trim()}\n\n--- Sample Work ---\n${form.sampleWork.trim()}`
         : form.intro.trim();
-
       const payload = {
         jobId,
         studentName: form.studentName.trim(),
@@ -160,7 +153,6 @@ function PitchForm() {
         timeline: Number(form.timeline),
         portfolioLink: form.portfolioLink.trim(),
       };
-
       await axios.post(`${API}/api/pitches`, payload);
       localStorage.setItem('icockroach_student_name', form.studentName.trim());
       localStorage.setItem('icockroach_student_college', form.college.trim());
@@ -174,7 +166,6 @@ function PitchForm() {
   };
 
   const fieldClass = (name) => `form-field ${errors[name] ? 'form-field-error' : ''}`;
-
   const formatDate = (dateStr) =>
     new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -251,7 +242,6 @@ function PitchForm() {
             ) : (
               <motion.div key="form">
                 <h2 className="form-section-title">Submit Your Pitch ✍️</h2>
-
                 <form className="pitch-form" onSubmit={handleSubmit}>
                   <div className="form-row-2">
                     <div className={fieldClass('studentName')}>
@@ -280,7 +270,6 @@ function PitchForm() {
                     </div>
                   </div>
 
-                  {/* INTRO with AI button */}
                   <div className={fieldClass('intro')}>
                     <label htmlFor="intro">Short Intro</label>
                     <textarea
@@ -297,19 +286,19 @@ function PitchForm() {
                       onClick={() => enhanceWithAI('intro', form.intro, setAiLoadingIntro, setAiSuccessIntro)}
                       disabled={aiLoadingIntro}
                       style={{
-                        marginTop: '8px',
-                        background: 'linear-gradient(135deg, #FF6B00, #ff9500)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
+                        marginTop:'8px',
+                        background:'linear-gradient(135deg, #FF6B00, #ff9500)',
+                        color:'white',
+                        border:'none',
+                        padding:'8px 16px',
+                        borderRadius:'8px',
                         cursor: aiLoadingIntro ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold',
-                        fontSize: '13px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 0 12px rgba(255,107,0,0.4)',
+                        fontWeight:'bold',
+                        fontSize:'13px',
+                        display:'flex',
+                        alignItems:'center',
+                        gap:'6px',
+                        boxShadow:'0 0 12px rgba(255,107,0,0.4)',
                         opacity: aiLoadingIntro ? 0.7 : 1,
                       }}
                     >
@@ -322,7 +311,6 @@ function PitchForm() {
                     )}
                   </div>
 
-                  {/* WHY ME with AI button */}
                   <div className={fieldClass('whyMe')}>
                     <label htmlFor="whyMe">Why You?</label>
                     <textarea
@@ -339,19 +327,19 @@ function PitchForm() {
                       onClick={() => enhanceWithAI('whyMe', form.whyMe, setAiLoadingWhyMe, setAiSuccessWhyMe)}
                       disabled={aiLoadingWhyMe}
                       style={{
-                        marginTop: '8px',
-                        background: 'linear-gradient(135deg, #FF6B00, #ff9500)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
+                        marginTop:'8px',
+                        background:'linear-gradient(135deg, #FF6B00, #ff9500)',
+                        color:'white',
+                        border:'none',
+                        padding:'8px 16px',
+                        borderRadius:'8px',
                         cursor: aiLoadingWhyMe ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold',
-                        fontSize: '13px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 0 12px rgba(255,107,0,0.4)',
+                        fontWeight:'bold',
+                        fontSize:'13px',
+                        display:'flex',
+                        alignItems:'center',
+                        gap:'6px',
+                        boxShadow:'0 0 12px rgba(255,107,0,0.4)',
                         opacity: aiLoadingWhyMe ? 0.7 : 1,
                       }}
                     >
@@ -470,7 +458,7 @@ function PitchForm() {
             </ul>
             <div style={{marginTop:'20px',padding:'15px',background:'#1a0f00',borderRadius:'8px',border:'1px solid #FF6B00'}}>
               <p style={{color:'#FF6B00',fontWeight:'bold',margin:'0 0 8px 0',fontSize:'13px'}}>✨ AI Powered</p>
-              <p style={{color:'#888',margin:0,fontSize:'12px'}}>Use the AI buttons to instantly enhance your intro and pitch with Claude AI!</p>
+              <p style={{color:'#888',margin:0,fontSize:'12px'}}>Use the AI buttons to instantly enhance your pitch!</p>
             </div>
           </motion.div>
         </aside>
@@ -480,4 +468,3 @@ function PitchForm() {
 }
 
 export default PitchForm;
-

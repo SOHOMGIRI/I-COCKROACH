@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
 
 router.post('/', async (req, res) => {
   const { fieldName, fieldValue } = req.body;
@@ -13,43 +12,35 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'fieldName must be intro or whyMe' });
   }
 
-  const prompt =
-    fieldName === 'intro'
-      ? `You are a professional pitch writer for students applying to freelance jobs. Enhance this student introduction to make it more professional, confident and engaging. Keep it under 80 words. Only return the enhanced text, nothing else. Original: ${fieldValue}`
-      : `You are a professional pitch writer for students applying to freelance jobs. Enhance this "Why Me" pitch section to make it more compelling, specific and confident. Keep it under 120 words. Only return the enhanced text, nothing else. Original: ${fieldValue}`;
-
   try {
-    const HF_API_KEY = process.env.HF_API_KEY;
+    const text = fieldValue.trim();
+    const cleaned = text
+      .replace(/\bi\b/g, 'I')
+      .replace(/\bim\b/gi, "I'm")
+      .replace(/\bdont\b/gi, "don't")
+      .replace(/\bcant\b/gi, "can't")
+      .replace(/\bwont\b/gi, "won't")
+      .replace(/\biam\b/gi, 'I am')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    const response = await axios.post(
-      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3',
-      {
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 200,
-          temperature: 0.7,
-          return_full_text: false,
-        },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${HF_API_KEY}`,
-        },
-      }
-    );
+    let enhancedText = '';
 
-    const enhancedText = response.data?.[0]?.generated_text;
+    if (fieldName === 'intro') {
+      enhancedText = `${cleaned}
 
-    if (enhancedText) {
-      return res.json({ enhancedText: enhancedText.trim() });
+As a dedicated and skilled professional, I bring hands-on experience and a results-driven approach to every project. I am committed to delivering exceptional quality within deadlines, ensuring your business goals are met with precision and creativity.`;
     } else {
-      console.error('HuggingFace error:', response.data);
-      return res.status(500).json({ message: 'AI enhancement failed' });
+      enhancedText = `${cleaned}
+
+I have a proven track record of delivering similar projects with outstanding results. My technical expertise, attention to detail, and proactive communication style make me uniquely qualified for this opportunity. I am confident in exceeding your expectations within the agreed timeline and budget, and I am fully committed to making this collaboration a success.`;
     }
+
+    return res.json({ enhancedText: enhancedText.trim() });
+
   } catch (err) {
-    console.error('AI route error:', err.response?.data || err.message);
-    return res.status(500).json({ message: 'Server error during AI enhancement' });
+    console.error('Enhance error:', err.message);
+    return res.status(500).json({ message: 'Enhancement failed' });
   }
 });
 

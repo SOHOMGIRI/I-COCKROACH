@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
 
-// POST /api/enhance
-// Uses Google Gemini (free) to enhance student pitch text
 router.post('/', async (req, res) => {
   const { fieldName, fieldValue } = req.body;
 
@@ -32,7 +30,6 @@ router.post('/', async (req, res) => {
     });
 
     const data = await response.json();
-
     const enhancedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (enhancedText) {

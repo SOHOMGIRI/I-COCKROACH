@@ -85,11 +85,31 @@ function BusinessDashboard() {
     setError('');
   };
 
+  // ✅ FIXED: Multiple fallback checks so owner is always detected correctly
   const isJobOwner = (job) => {
     if (!loggedInUser) return false;
-    if (!job.postedByUserId || job.postedByUserId === '') return false;
-    const userId = loggedInUser._id || loggedInUser.id || '';
-    return String(job.postedByUserId).trim() === String(userId).trim();
+
+    const userId = String(loggedInUser._id || loggedInUser.id || '').trim();
+    const userName = String(loggedInUser.name || loggedInUser.businessName || '').trim().toLowerCase();
+
+    // Check 1: match by postedByUserId (most reliable)
+    if (job.postedByUserId && job.postedByUserId !== '') {
+      if (String(job.postedByUserId).trim() === userId) return true;
+    }
+
+    // Check 2: match by postedBy name as fallback
+    // (covers jobs posted before postedByUserId was saved)
+    if (job.postedBy && userName) {
+      if (String(job.postedBy).trim().toLowerCase() === userName) return true;
+    }
+
+    // Check 3: match by user email if stored
+    const userEmail = String(loggedInUser.email || '').trim().toLowerCase();
+    if (job.postedByEmail && userEmail) {
+      if (String(job.postedByEmail).trim().toLowerCase() === userEmail) return true;
+    }
+
+    return false;
   };
 
   const handleAccept = async (pitchId) => {
@@ -204,7 +224,7 @@ function BusinessDashboard() {
         <p>Review pitches and manage your jobs</p>
         {loggedInUser && (
           <p style={{color:'#FF6B00',marginTop:'8px',fontWeight:'bold',fontSize:'14px'}}>
-            Logged in as: {loggedInUser.name} | ID: {loggedInUser._id || loggedInUser.id}
+            Logged in as: {loggedInUser.name || loggedInUser.businessName} | ID: {loggedInUser._id || loggedInUser.id}
           </p>
         )}
       </motion.header>
@@ -270,10 +290,6 @@ function BusinessDashboard() {
                         👁️ Viewing only — this is not your job
                       </span>
                     )}
-                    <p style={{color:'#555',fontSize:'11px',marginTop:'4px'}}>
-                      Job owner ID: {selectedJob.postedByUserId || 'not set'} |
-                      Your ID: {loggedInUser?._id || loggedInUser?.id || 'not logged in'}
-                    </p>
                   </div>
                   <button type="button" className="modal-close" onClick={closePitches}>
                     <FaTimes />
@@ -358,6 +374,8 @@ function BusinessDashboard() {
                             <FaLink /> Portfolio <FaExternalLinkAlt />
                           </a>
                         )}
+
+                        {/* ✅ FIXED: Show accept/reject only to job owner, only for pending pitches */}
                         {pitch.status === 'Pending' && isJobOwner(selectedJob) && (
                           <div className="pitch-actions">
                             <button

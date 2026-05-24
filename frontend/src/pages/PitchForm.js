@@ -93,7 +93,7 @@ function PitchForm() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-  // AI Enhancement Function
+  // ✅ AI Enhancement — calls YOUR backend, no API key needed in frontend
   const enhanceWithAI = async (fieldName, fieldValue, setLoadingFn, setSuccessFn) => {
     if (!fieldValue.trim()) {
       alert('Please write something first before enhancing with AI!');
@@ -104,35 +104,13 @@ function PitchForm() {
     setSuccessFn(false);
 
     try {
-      const prompt = fieldName === 'intro'
-        ? `You are a professional pitch writer for students applying to freelance jobs. 
-           Enhance this student introduction to make it more professional, confident and engaging. 
-           Keep it under 80 words. Only return the enhanced text, nothing else.
-           Original: ${fieldValue}`
-        : `You are a professional pitch writer for students applying to freelance jobs.
-           Enhance this "Why Me" pitch section to make it more compelling, specific and confident.
-           Keep it under 120 words. Only return the enhanced text, nothing else.
-           Original: ${fieldValue}`;
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY || '',
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 300,
-          messages: [{ role: 'user', content: prompt }],
-        }),
+      const { data } = await axios.post(`${API}/api/enhance`, {
+        fieldName,
+        fieldValue,
       });
 
-      const data = await response.json();
-
-      if (data.content && data.content[0] && data.content[0].text) {
-        setForm(prev => ({ ...prev, [fieldName]: data.content[0].text.trim() }));
+      if (data.enhancedText) {
+        setForm(prev => ({ ...prev, [fieldName]: data.enhancedText }));
         setSuccessFn(true);
         setTimeout(() => setSuccessFn(false), 3000);
       } else {
@@ -502,3 +480,4 @@ function PitchForm() {
 }
 
 export default PitchForm;
+

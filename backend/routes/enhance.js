@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // POST /api/enhance
-// Called by PitchForm.jsx to enhance student intro or whyMe text using Claude AI
+// Uses Google Gemini (free) to enhance student pitch text
 router.post('/', async (req, res) => {
   const { fieldName, fieldValue } = req.body;
 
@@ -16,36 +16,29 @@ router.post('/', async (req, res) => {
 
   const prompt =
     fieldName === 'intro'
-      ? `You are a professional pitch writer for students applying to freelance jobs. 
-Enhance this student introduction to make it more professional, confident and engaging. 
-Keep it under 80 words. Only return the enhanced text, nothing else.
-Original: ${fieldValue}`
-      : `You are a professional pitch writer for students applying to freelance jobs.
-Enhance this "Why Me" pitch section to make it more compelling, specific and confident.
-Keep it under 120 words. Only return the enhanced text, nothing else.
-Original: ${fieldValue}`;
+      ? `You are a professional pitch writer for students applying to freelance jobs. Enhance this student introduction to make it more professional, confident and engaging. Keep it under 80 words. Only return the enhanced text, nothing else. Original: ${fieldValue}`
+      : `You are a professional pitch writer for students applying to freelance jobs. Enhance this "Why Me" pitch section to make it more compelling, specific and confident. Keep it under 120 words. Only return the enhanced text, nothing else. Original: ${fieldValue}`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }],
+        contents: [{ parts: [{ text: prompt }] }],
       }),
     });
 
     const data = await response.json();
 
-    if (data.content && data.content[0] && data.content[0].text) {
-      return res.json({ enhancedText: data.content[0].text.trim() });
+    const enhancedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (enhancedText) {
+      return res.json({ enhancedText: enhancedText.trim() });
     } else {
-      console.error('Anthropic error response:', data);
+      console.error('Gemini error response:', data);
       return res.status(500).json({ message: 'AI enhancement failed', details: data });
     }
   } catch (err) {

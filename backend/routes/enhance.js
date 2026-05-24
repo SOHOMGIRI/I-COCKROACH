@@ -29,11 +29,16 @@ router.post('/', async (req, res) => {
     if (fieldName === 'intro') {
       enhancedText = `${cleaned}
 
-As a dedicated and skilled professional, I bring hands-on experience and a results-driven approach to every project. I am committed to delivering exceptional quality within deadlines, ensuring your business goals are met with precision and creativity.`;
+As a dedicated and skilled professional, I bring hands‑on experience and a results‑driven approach to every project. I am committed to delivering exceptional quality within deadlines, ensuring your business goals are met with precision and creativity.`;
     } else {
       enhancedText = `${cleaned}
 
 I have a proven track record of delivering similar projects with outstanding results. My technical expertise, attention to detail, and proactive communication style make me uniquely qualified for this opportunity. I am confident in exceeding your expectations within the agreed timeline and budget, and I am fully committed to making this collaboration a success.`;
+    }
+
+    // Fallback: if somehow empty, just return cleaned text
+    if (!enhancedText.trim()) {
+      enhancedText = cleaned || "Your text has been improved.";
     }
 
     return res.json({ enhancedText: enhancedText.trim() });

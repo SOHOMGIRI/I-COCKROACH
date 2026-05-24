@@ -18,24 +18,34 @@ router.post('/', async (req, res) => {
       : `You are a professional pitch writer for students applying to freelance jobs. Enhance this "Why Me" pitch section to make it more compelling, specific and confident. Keep it under 120 words. Only return the enhanced text, nothing else. Original: ${fieldValue}`;
 
   try {
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    const HF_API_KEY = process.env.HF_API_KEY;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
-    });
+    const response = await fetch(
+      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${HF_API_KEY}`,
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 200,
+            temperature: 0.7,
+            return_full_text: false,
+          },
+        }),
+      }
+    );
 
     const data = await response.json();
-    const enhancedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const enhancedText = Array.isArray(data) ? data[0]?.generated_text : null;
 
     if (enhancedText) {
       return res.json({ enhancedText: enhancedText.trim() });
     } else {
-      console.error('Gemini error response:', data);
+      console.error('HuggingFace error response:', data);
       return res.status(500).json({ message: 'AI enhancement failed', details: data });
     }
   } catch (err) {
